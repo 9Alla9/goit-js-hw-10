@@ -1,4 +1,4 @@
-const URL = 'https://restcountries.com/v3.1/name/{name}';
+const URL = 'https://restcountries.com/v3.1/name';
 
 export function fetchCountries(name) {
   return fetch(
