@@ -1,87 +1,88 @@
 import './css/styles.css';
 import debounce from 'lodash.debounce';
 import Notiflix from 'notiflix';
-import { fetchCountries } from './fetchCountries';
+import { fetchCountries } from './fetchCountries.js';
 
 const DEBOUNCE_DELAY = 300;
 
-const countryInput = document.querySelector('#search-box');
-const countryList = document.querySelector('.country-list');
-const countryInfo = document.querySelector('.country-info');
+const refs = {
+  input: document.getElementById('search-box'),
+  countryList: document.querySelector('.country-list'),
+  countryInfo: document.querySelector('.country-info'),
+};
 
-countryInput.addEventListener(
-  'input',
-  debounce(onCountryInput, DEBOUNCE_DELAY)
-);
+refs.input.addEventListener('input', debounce(onSearchCountry, DEBOUNCE_DELAY));
 
-function onCountryInput() {
-  const name = countryInput.value.trim();
-  if (name === '') {
-    return (countryList.innerHTML = ''), (countryInfo.innerHTML = '');
+function onSearchCountry(e) {
+  e.preventDefault();
+
+  const inputValue = e.target.value.trim();
+  if (!inputValue) {
+    resetMarkup(refs.countryList);
+    resetMarkup(refs.countryInfo);
+    return;
   }
 
-  fetchCountries(name)
-    .then(countries => {
-      countryList.innerHTML = '';
-      countryInfo.innerHTML = '';
-      if (countries.length === 1) {
-        countryList.insertAdjacentHTML(
-          'beforeend',
-          renderCountryList(countries)
+  fetchCountries(inputValue)
+    .then(dataCountry => {
+      if (dataCountry.length > 10) {
+        Notiflix.Notify.info(
+          'Too many matches found. Please enter a more specific name.'
         );
-        countryInfo.insertAdjacentHTML(
-          'beforeend',
-          renderCountryInfo(countries)
-        );
-      } else if (countries.length >= 10) {
-        alertTooManyMatches();
+      } else if (dataCountry.length >= 2 && dataCountry.length <= 10) {
+        resetMarkup(refs.countryList);
+        createMarkupCountryList(dataCountry);
+        resetMarkup(refs.countryInfo);
       } else {
-        countryList.insertAdjacentHTML(
-          'beforeend',
-          renderCountryList(countries)
-        );
+        resetMarkup(refs.countryInfo);
+        createMarkupCountryInfo(dataCountry);
+        resetMarkup(refs.countryList);
       }
     })
-    .catch(alertWrongName);
+    .catch(() => {
+      resetMarkup(refs.countryList);
+      resetMarkup(refs.countryInfo);
+      Notiflix.Notify.failure('Oops, there is no country with that name');
+    });
 }
 
-function renderCountryList(countries) {
-  const markup = countries
+function createMarkupCountryList(dataCountry) {
+  const markup = dataCountry
     .map(({ name, flags }) => {
-      return `
-          <li class="country-list__item">
-              <img class="country-list__flag" src="${flags.svg}" alt="Flag of ${name.official}" width = 30px height = 30px>
-              <h2 class="country-list__name">${name.official}</h2>
-          </li>
-          `;
+      return `<li class="country-list__item">
+        <img class="country-list__img" src="${flags.svg}" alt="flag" />
+        <p class="country-list__text">${name.official}</p>
+      </li>`;
     })
     .join('');
-  return markup;
+  return refs.countryList.insertAdjacentHTML('beforeend', markup);
 }
 
-function renderCountryInfo(countries) {
-  const markup = countries
-    .map(({ capital, population, languages }) => {
+function createMarkupCountryInfo(dataCountry) {
+  const markup = dataCountry
+    .map(({ name, capital, population, flags, languages }) => {
       return `
-        <ul class="country-info__list">
-            <li class="country-info__item"><p><b>Capital: </b>${capital}</p></li>
-            <li class="country-info__item"><p><b>Population: </b>${population}</p></li>
-            <li class="country-info__item"><p><b>Languages: </b>${Object.values(
-              languages
-            ).join(', ')}</p></li>
-        </ul>
-        `;
+  <div class="country__flag">
+    <img class="country__img" src="${flags.svg}" alt="flag">
+    <p class="country__name">${name.official}</p>
+  </div>
+  <ul class="country__info">
+      <li class="country__item"> <b>Capital</b>:
+    <span class="country__span">${capital}</span>
+      </li>
+      <li class="country__item"> <b>Population</b>:
+    <span class="country__span">${population}</span>
+      </li>
+      <li class="country__item"> <b>Languages</b>:
+    <span class="country__span">${Object.values(languages).join(', ')}</span>
+      </li>
+  </ul>`;
     })
     .join('');
-  return markup;
+
+  return refs.countryInfo.insertAdjacentHTML('beforeend', markup);
 }
 
-function alertWrongName() {
-  Notiflix.Notify.failure('Oops, there is no country with that name');
-}
-
-function alertTooManyMatches() {
-  Notiflix.Notify.info(
-    'Too many matches found. Please enter a more specific name.'
-  );
+function resetMarkup(el) {
+  el.innerHTML = '';
 }
